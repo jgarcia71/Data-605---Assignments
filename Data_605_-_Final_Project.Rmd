@@ -1,0 +1,275 @@
+---
+title: "Data 605 - Final Project"
+author: "Joseph E. Garcia"
+date: "December 12, 2018"
+output: html_document
+---
+
+```{r}
+library(MASS)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+```
+
+##Problem 1
+Pick one of the quantitative independent variables (Xi) from the data set below, and define that variable as  X.Also, pick one of the dependent variables (Yi) below, and define that as Y.
+
+```{r}
+data <- read.csv("C:/Users/JGARCIA/Desktop/MS in Data Science/Data 605/Project/train.csv",stringsAsFactors = FALSE)
+
+```
+
+
+
+```{r}
+X <- data$YearBuilt
+Y <- data$SalePrice
+```
+
+##Probability.   
+Calculate as a minimum the below probabilities a through c.  Assume the small letter "x" is estimated as the 3d quartile of the X variable, and the small letter "y" is estimated as the 1st quartile of the Y variable.  Interpret the meaning of all probabilities.
+
+```{r}
+(x <- quantile(X, 1))
+```
+
+
+```{r}
+(y <- quantile(Y, 0.50))
+```
+
+```{r}
+(n<-(nrow(data)))
+```
+
+
+```{r}
+(ny<-nrow(subset(data, Y > y)))
+```
+
+a.   P(X > x | Y > y)
+```{r}
+(pa <- nrow(subset(data, X > x & Y > y))/ny)
+```
+
+b.  P(X > x, Y > y)
+
+```{r}
+
+(pb<-nrow(subset(data, X > x & Y > y))/n)
+```
+
+c.   P(X < x | Y > y)
+
+```{r}
+(pc <- nrow(subset(data, X < x & Y > y))/ny)
+```
+
+
+Does splitting the training data in this fashion make them independent? Let A be the new variable counting those observations above the 1st quartile for X, and let B be the new variable counting those observations above the 1st quartile for Y.    Does P(AB)=P(A)P(B)?   Check mathematically, and then evaluate by running a Chi Square test for association.
+
+```{r}
+(x <- quantile(X, 0.75))
+```
+
+```{r}
+c1 <- nrow(subset(data, X <=x & Y<=y))
+c2 <- nrow(subset(data, X <=x & Y>y))
+c3 <- c1+c2
+c4 <- nrow(subset(data, X >x & Y<=y))
+c5 <- nrow(subset(data, X >x & Y>y))
+c6 <- c4+c5
+c7 <- c1+c4
+c8 <- c2+c5
+c9 <- c3+c6
+
+
+dfcont<-matrix(round(c(c1, c2, c3, c4, c5, c6, c7, c8, c9), 3), ncol=3, nrow=3, byrow=TRUE)
+colnames(dfcont) <-c (
+"<=3d quartile",
+">3d quartile",
+"Total")
+rownames(dfcont) <-c ("<=1st quartile",">1st quartile","Total")
+
+(dfcont <-  knitr::kable(as.table(dfcont)))
+```
+
+```{r}
+mat <- matrix(c(639, 579, 93, 149), 2, 2, byrow=T) 
+chisq.test(mat, correct=TRUE) 
+```
+
+Problem 2
+
+You are to register for Kaggle.com (free) and compete in the House Prices: Advanced Regression Techniques competition.  https://www.kaggle.com/c/house-prices-advanced-regression-techniques .  I want you to do the following.
+
+##Descriptive and Inferential Statistics. 
+Provide univariate descriptive statistics and appropriate plots for the training data set.  Provide a scatterplot matrix for at least two of the independent variables and the dependent variable. Derive a correlation matrix for any THREE quantitative variables in the dataset.  Test the hypotheses that the correlations between each pairwise set of variables is 0 and provide a 80% confidence interval.  Discuss the meaning of your analysis.  Would you be worried about familywise error? Why or why not?
+
+```{r}
+my_df <- cbind.data.frame(X, Y)
+colnames(my_df) <- c("YearBuilt", "SalePrice")
+summary(my_df)
+```
+
+
+```{r}
+quantile(my_df$YearBuilt)
+```
+
+```{r}
+quantile(my_df$SalePrice)
+```
+
+```{r}
+par(mfrow=c(2, 2))
+hist(my_df$YearBuilt, col = "darkolivegreen1")
+boxplot(my_df$YearBuilt, main="Boxplot LotArea")
+qqnorm(my_df$YearBuilt)
+qqline(my_df$YearBuilt)
+```
+
+```{r}
+hist(my_df$SalePrice, col = "brown1")
+boxplot(my_df$SalePrice, main="Boxplot LotArea")
+qqnorm(my_df$SalePrice)
+qqline(my_df$SalePrice)
+```
+
+```{r}
+mod = lm(SalePrice ~ YearBuilt, data = my_df)
+summary(mod)
+```
+
+```{r}
+plot(my_df$YearBuilt, my_df$SalePrice, main = "Scatterplot SalePrice by YearBuilt ")
+abline(lm(my_df$SalePrice ~ my_df$YearBuilt), col="chartreuse1", lwd=3)
+```
+
+
+```{r}
+plot(mod, pch=16, which=1)
+```
+
+```{r}
+trans <- boxcox(mod)
+```
+
+
+```{r}
+trans_df <- as.data.frame(trans)
+
+optimal_lambda <- trans_df[which.max(trans$y),1]
+
+transdata = cbind( my_df,my_df$YearBuilt^optimal_lambda, my_df$SalePrice^optimal_lambda)
+names(transdata)[3] = "YearBuilt_transf"
+names(transdata)[4] = "SalePrice_transf"
+head(transdata,5)
+summary(transdata)
+```
+
+
+```{r}
+hist(transdata$YearBuilt_transf, col = "deeppink1", main = "Historgram of YearBuilt Transformed by Box-Cox")
+hist(transdata$SalePrice_transf, col = "green", main = "Historgram of SalePrice Transformed by Box-Cox")
+mod2 = lm(SalePrice_transf ~ YearBuilt, data = transdata)
+summary(mod2)
+plot(mod2, pch=16, which=1)
+```
+
+
+```{r}
+cor.test(transdata[,"YearBuilt"], transdata[,"SalePrice_transf"], conf.level = .99)
+```
+
+##Linear Algebra and Correlation. 
+Invert your 3 x 3 correlation matrix from above. (This is known as the precision matrix and contains variance inflation factors on the diagonal.) Multiply the correlation matrix by the precision matrix, and then multiply the precision matrix by the correlation matrix. Conduct LU decomposition on the matrix.  
+
+```{r}
+cor_data <- cor(my_df[,c("YearBuilt","SalePrice")])
+cor_data
+```
+
+
+```{r}
+cor_transdata <- cor(transdata[,c("YearBuilt","SalePrice_transf")])
+cor_transdata
+```
+
+```{r}
+pre_data <- solve(cor_data)
+pre_data
+```
+
+```{r}
+pre_trans <- solve(cor_transdata)
+pre_trans
+```
+
+
+
+```{r}
+cor_data %*% pre_data
+cor_transdata %*% pre_trans
+pre_data %*% cor_data 
+pre_trans %*% cor_transdata
+```
+
+##Calculus-Based Probability & Statistics.  
+Many times, it makes sense to fit a closed form distribution to data.  Select a variable in the Kaggle.com training dataset that  is skewed to the right, shift it so that the minimum value is absolutely above zero if necessary.  Then load the MASS package and run fitdistr to fit an exponential probability density function.  (See  https://stat.ethz.ch/R-manual/R-devel/library/MASS/html/fitdistr.html ).  Find the optimal value of ??? for this distribution, and then take 1000 samples from this exponential distribution using this value (e.g., rexp(1000, ???)).  Plot a histogram and compare it with a histogram of your original variable.   Using the exponential pdf, find the 5th and 95th percentiles using the cumulative distribution function (CDF).   Also generate a 95% confidence interval from the empirical data, assuming normality.  Finally, provide the empirical 5th percentile and 95th percentile of the data.  
+
+```{r}
+YearBuilt <- my_df$YearBuilt + 1e-32
+min(YearBuilt)
+```
+
+```{r}
+(fit <- fitdistr(YearBuilt, "exponential"))
+```
+
+```{r}
+(lambda <- fit$estimate)
+```
+
+```{r}
+samp <- rexp(1000, lambda)
+```
+
+
+```{r}
+par(mfrow=c(1, 2))
+hist(samp, xlab = "YearBuilt", main = "Simulated", col="darkorchid1")
+hist(my_df$YearBuilt, xlab = "YearBuilt", main = "Observed",col="aquamarine1")
+```
+
+##Modeling.  
+Build some type of multiple  regression  model and submit your model to the competition board.  Provide your complete model summary and results with analysis. 
+```{r}
+quantVar <- sapply(data, is.numeric)
+quantVar_df <- data[ , quantVar]
+head(quantVar_df)
+corSales <-data.frame(apply(quantVar_df,2, function(col)cor(col, quantVar_df$SalePrice, use = "complete.obs")))
+colnames(corSales) <- c("cor")
+corSales
+(subset(corSales, cor > 0.5))
+```
+
+
+```{r}
+model <- lm(SalePrice ~ OverallQual + YearBuilt + YearRemodAdd + TotalBsmtSF + X1stFlrSF + GrLivArea + FullBath + TotRmsAbvGrd + GarageCars + GarageArea, data = data)
+
+summary(model)
+
+```
+
+
+```{r}
+test <- read.csv("C:/Users/JGARCIA/Desktop/test.csv")
+Sale_Price <- predict(model,test)
+prediction <- data.frame( Id = test[,"Id"],  SalePrice = Sale_Price)
+prediction[prediction<0] <- 0
+prediction <- replace(prediction,is.na(prediction),0)
+head(prediction)
+```
+
